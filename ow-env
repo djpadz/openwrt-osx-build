@@ -1,0 +1,10 @@
+# bash
+
+case $BASH_SOURCE in
+	*/*) OPENWRT_BUILD_DIR=$(cd ${BASH_SOURCE%/*} ; pwd -P) ;;
+	*) OPENWRT_BUILD_DIR=$(pwd -P)
+esac
+
+# Use our bin dir, in place of /usr/bin, for GNU tools, no "open" command,
+# and whatever other things we need to wrap or remove.
+export PATH=$OPENWRT_BUILD_DIR/bin:/usr/sbin:/bin:/sbin

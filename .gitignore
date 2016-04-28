@@ -1,0 +1,9 @@
+*
+!.gitignore
+!bootstrap
+!build-bin
+!flash
+!ow-env
+!README.md
+!update
+*/**

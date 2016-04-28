@@ -1,0 +1,50 @@
+#!/bin/bash
+
+IMAGE_PATH=brcm2708/openwrt-brcm2708-bcm2709-rpi-2-ext4-sdcard.img
+PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
+
+[[ $(whoami) == root ]] || exec sudo $0 "$@"
+
+HERE=$(cd ${BASH_SOURCE%/*} ; pwd -P)
+
+cd $HERE/openwrt/bin || exit $?
+
+if [[ ! -f $IMAGE_PATH ]]; then
+	echo "Error: Could not find $IMAGE_PATH in $(pwd)." >&2
+	exit 1
+fi
+
+if [[ -z $1 ]]; then
+	DEVICE=$(diskutil list | awk '($1 ~ /dev.disk/) { x=$1; } ($2 == "Linux") { print x; }')
+	if [[ -z $DEVICE ]]; then
+		echo 'Error: Could not figure out which device to use.' >&2
+		exit 1
+	fi
+else
+	DEVICE=$1
+fi
+
+if [[ $DEVICE == *' '* ]]; then
+	echo "Error: Could not choose between possible devices: $DEVICE" >&2
+	exit 1
+fi
+if [[ ! -e $DEVICE ]]; then
+	echo "Error: $DEVICE does not exist." >&2
+	exit 1
+fi
+
+[[ $DEVICE == /dev/* ]] || DEVICE=/dev/$DEVICE
+
+echo "Using device $DEVICE"
+diskutil list $DEVICE
+read -n1 -p 'Press enter to continue, or any other key to quit.  ' x
+if [[ $x == ? ]]; then
+	echo ''
+	echo 'Quitting; doing nothing.'
+	exit 0
+fi
+
+diskutil unmountdisk $DEVICE || exit $?
+dd if=$IMAGE_PATH of=$DEVICE bs=8388608
+diskutil eject $DEVICE || exit $?
+exit 0

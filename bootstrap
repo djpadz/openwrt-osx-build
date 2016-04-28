@@ -1,0 +1,24 @@
+#!/bin/bash
+
+cd ${BASH_SOURCE%/*}
+
+touch TMPTMPTMP.$$ || exit $?
+if [[ -e tmptmptmp.$$ ]]; then
+	echo 'Error: OpenWRT can only be built on a case-sensitive filesystem.' >&2
+	exit 1
+fi
+rm TMPTMPTMP.$$
+
+[[ -d bin ]] || ./build-bin
+
+. ./ow-env
+
+if [[ -d openwrt ]]; then
+        cd openwrt
+        git pull
+else
+        git clone git://git.openwrt.org/openwrt.git
+        cd openwrt
+fi
+
+scripts/feeds update -a && scripts/feeds install -a && make defconfig

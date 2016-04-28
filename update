@@ -1,0 +1,9 @@
+#!/bin/bash
+
+cd ${BASH_SOURCE%/*}
+./build-bin
+. ./ow-env
+cd openwrt
+git pull --no-edit
+scripts/feeds update -a
+scripts/feeds install -a

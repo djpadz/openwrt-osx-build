@@ -1,0 +1,76 @@
+#!/bin/bash
+
+cd ${BASH_SOURCE%/*}
+
+PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
+
+BREW_REPO=$(brew --repository)
+BREWS=(coreutils findutils gawk gettext gnu-getopt gnu-tar grep libtool mercurial openssl wget xz)
+
+for i in ${BREWS[@]}; do
+        [[ -d $BREW_REPO/opt/$i ]] || brew install ${BREWS[@]}
+done
+
+rm -rf new-bin
+mkdir new-bin
+cd new-bin
+
+# Symlink stuff from HomeBrew so that we get GNU versions of the
+# right tools.
+for i in ${BREWS[@]}; do
+        ung=
+        case $i in
+                findutils|grep|gnu-tar) ung=1 ;;
+        esac
+        for f in $BREW_REPO/opt/$i/bin/*; do
+                lname=${f##*/}
+                [[ -n $ung ]] && lname=${lname#g}
+                ln -s $f $lname
+        done
+done
+
+ln -s grep ggrep
+
+# Create a wrapper that calls the binary with /usr/bin in the front of the
+# path.  This is for certain perl utilities that use the perl wrapper, which
+# seem to get upset if they're called via a symlink.
+tmpfile=tmptmptmp.$$
+cat > $tmpfile <<'EOF'
+#!/bin/bash
+exec /usr/bin/${BASH_SOURCE##*/} "$@"
+EOF
+chmod 755 $tmpfile
+
+# PERL scripts get the wrapper; everything else should be good with a symlink.
+for i in $(head -1 /usr/bin/* 2>/dev/null | awk '(NF == 3 && $1 == "==>" && $3 == "<==") { a=$2; } ($1 == "#!/usr/bin/perl") { print a; }'); do
+        f=${i##*/}
+        [[ -e $f ]] && continue
+        ln $tmpfile $f
+done
+
+for i in /usr/bin/*; do
+        f=${i##*/}
+        [[ -e $f ]] && continue
+        ln -s $i
+done
+
+rm -f $tmpfile
+
+# open causes problems with builds, because it's historically been linked
+# to openvt on Linux, which does not exist on OS X.
+rm -f open
+
+# OpenWRT wants GNU LD, which supports the --version option.
+rm -f ld
+cat > ld <<'EOF'
+#!/bin/bash
+[[ $1 == '--version' ]] && exec /usr/bin/ld -v
+exec /usr/bin/ld "$@"
+EOF
+chmod 755 ld
+
+cd ..
+[[ -d bin ]] && mv bin old-bin
+mv new-bin bin
+[[ -d old-bin ]] && rm -rf old-bin
+exit 0
